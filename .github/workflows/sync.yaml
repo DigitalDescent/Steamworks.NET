@@ -1,0 +1,55 @@
+name: Sync with Upstream
+
+on:
+# Runs daily at midnight UTC
+  schedule:
+    - cron: "0 0 * * *" 
+    
+  # Allows manual triggering
+  workflow_dispatch:  
+
+jobs:
+  # Sync the main branch with upstream
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the source
+      - name: Checkout downstream repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history
+
+      # Configure Git
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Add the upstream repository
+      - name: Add upstream repository
+        run: |
+          git remote add upstream https://github.com/rlabrecque/Steamworks.NET.git
+          git fetch upstream
+
+      # Rebase the main branch with upstream
+      - name: Rebase upstream changes onto downstream
+        run: |
+          git checkout main
+          git rebase upstream/main || (git rebase --abort && echo "Rebase failed, skipping.")
+
+      # Check for merge conflicts
+      - name: Resolve conflicts (if any)
+        run: |
+          git status
+          if git diff --name-only --diff-filter=U | grep .; then
+            echo "Merge conflicts detected! Please resolve them manually."
+            exit 1
+          fi
+
+      # Push changes to downstream repository
+      - name: Push changes to downstream repository
+        run: |
+          git push origin main || (echo "Push failed. Check for conflicts or permissions." && exit 1)
+
+      # Keep the workflow alive
+      - uses: gautamkrishnar/keepalive-workflow@v1 # using the workflow with default settings

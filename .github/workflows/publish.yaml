@@ -1,0 +1,32 @@
+name: Publish NuGet Package
+
+on:
+  # Trigger on any new tag
+  push:
+    tags:
+      - "*" 
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract tag name (version)
+        id: get_version
+        run: echo "PACKAGE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Install NuGet
+        run: sudo apt-get update && sudo apt-get install -y nuget
+
+      - name: Build NuGet package
+        run: |
+          nuget pack Standalone/Steamworks.NET.nuspec -Version $PACKAGE_VERSION -OutputDirectory ./output
+
+      - name: Publish to NuGet
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          nuget push ./output/*.nupkg -ApiKey $NUGET_API_KEY -Source https://api.nuget.org/v3/index.json
